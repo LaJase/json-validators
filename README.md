@@ -158,9 +158,28 @@ cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
 > ```
 
 ### Python
+
+Using a virtual environment is recommended to avoid polluting your system packages.
+
 ```bash
-pip install jsonschema colorama   # no build step
+# Create and activate the venv
+python3 -m venv .venv
+source .venv/bin/activate      # Linux / macOS
+# .venv\Scripts\activate       # Windows
+
+# Install dependencies
+pip install jsonschema colorama
+
+# Deactivate when done
+deactivate
 ```
+
+> The `.venv/` directory is already in `.gitignore`.
+>
+> To use the validator without activating the venv each time:
+> ```bash
+> .venv/bin/python3 python/validator.py -f schema/valid_example.json -s schema/simple_schema.json
+> ```
 
 ---
 
