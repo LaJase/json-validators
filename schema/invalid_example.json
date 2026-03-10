@@ -1,0 +1,7 @@
+{
+  "id": "pas-un-entier",
+  "nom": "B",
+  "age": 200,
+  "roles": ["superuser"],
+  "champ_inconnu": true
+}
