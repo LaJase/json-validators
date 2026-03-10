@@ -1,226 +1,311 @@
-# JSON Validator Benchmark
+# JSON Schema Validator — Benchmark
 
-Compare JSON Schema validation across **Rust**, **Go**, **C++** and **Python** on 100 files of ~1.5 MB each.
+> **Rust · Go · C++ · Python** — four implementations of the same JSON Schema validator,
+> benchmarked on **100 files × 1.45 MB** with a complex e-commerce schema (Draft 7).
 
-Each validator exposes the same CLI interface:
-
-```
-validator -s SCHEMA (-f FILE | -b DIR) [-v] [-j]
-```
-
-| Flag | Description |
-|------|-------------|
-| `-f FILE` | Validate a single JSON file |
-| `-s SCHEMA` | JSON Schema file |
-| `-b DIR` | Batch mode — validate all `*.json` in DIR (schema compiled **once**) |
-| `-v` | Verbose — show schema path and failing value |
-| `-j` | JSON output — machine-readable |
+![Rust](https://img.shields.io/badge/Rust-1.70+-orange?logo=rust)
+![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)
+![C++](https://img.shields.io/badge/C++-17-00599C?logo=cplusplus)
+![Python](https://img.shields.io/badge/Python-3.8+-3776AB?logo=python)
 
 ---
 
-## Structure
+## Results
+
+> Machine: Linux x86-64 — 100 files · 1.45 MB each · 145 MB total
+
+### Part 1 — Per-file &nbsp;`(one process per file)`
+
+Each invocation starts a new process, reads the schema, compiles it, validates one file, exits.
+This is the real-world CLI experience.
+
+```
+  files/sec  ┊
+             ┊
+  44.6 ──── ┤ Rust   ████████████████████████████████████████  44.6/s  22ms   2.2s  ★
+  38.0 ──── ┤ C++    ██████████████████████████████████        38.0/s  26ms   2.6s
+  12.5 ──── ┤ Go     ███████████                               12.5/s  80ms   8.0s
+   2.6 ──── ┤ Python ██                                         2.6/s 374ms  37.4s
+             ┊
+```
+
+| Language | Total    | Avg/file | Files/sec | vs Rust       |
+|----------|----------|----------|-----------|---------------|
+| **Rust** | 2.239 s  | 22.3 ms  | 44.6 /s   | ★ baseline    |
+| **C++**  | 2.631 s  | 26.3 ms  | 38.0 /s   | ×1.17 slower  |
+| **Go**   | 7.954 s  | 79.5 ms  | 12.5 /s   | ×3.55 slower  |
+| **Python**| 37.432 s | 374.3 ms | 2.6 /s   | ×16.71 slower |
+
+---
+
+### Part 2 — Batch &nbsp;`(one process, schema compiled once)`
+
+The schema is compiled a single time, then all 100 files are validated in the same process.
+This isolates pure parsing + validation throughput.
+
+```
+  MB/s       ┊
+             ┊
+  112.6 ─── ┤ Rust   ████████████████████████████████████████  112.6 MB/s  77.5/s  ★
+   60.8 ─── ┤ C++    █████████████████████                      60.8 MB/s  41.8/s
+   20.9 ─── ┤ Go     ███████                                    20.9 MB/s  14.4/s
+    4.8 ─── ┤ Python ██                                          4.8 MB/s   3.3/s
+             ┊
+```
+
+| Language | Wall time | Avg/file  | Files/sec | Throughput  | vs Rust       |
+|----------|-----------|-----------|-----------|-------------|---------------|
+| **Rust** | 1.298 s   | 12.91 ms  | 77.5 /s   | 112.6 MB/s  | ★ baseline    |
+| **C++**  | 2.399 s   | 23.92 ms  | 41.8 /s   |  60.8 MB/s  | ×1.84 slower  |
+| **Go**   | 6.955 s   | 69.47 ms  | 14.4 /s   |  20.9 MB/s  | ×5.35 slower  |
+| **Python**| 30.421 s | 303.42 ms |  3.3 /s   |   4.8 MB/s  | ×23.43 slower |
+
+---
+
+### Startup overhead
+
+The difference between per-file and batch time, divided across 100 processes:
+
+| Language | Overhead/process | What's included |
+|----------|-----------------|-----------------|
+| **C++**  | ~2 ms           | OS loader, minimal runtime |
+| **Rust** | ~9 ms           | Runtime + schema read & compile |
+| **Go**   | ~9 ms           | GC runtime init + schema read & compile |
+| **Python**| ~70 ms         | Interpreter boot + import chain + schema compile |
+
+> **C++ starts faster than Rust and Go** because `nlohmann-json-schema-validator`
+> compiles the schema in ~2 ms, while both `jsonschema` (Rust) and `santhosh-tekuri/jsonschema` (Go)
+> take ~8–9 ms for schema compilation — dominating their per-file overhead.
+
+---
+
+### Why is Rust faster in batch mode?
+
+| Factor | Rust | C++ | Go | Python |
+|--------|------|-----|----|--------|
+| JSON parser | `serde_json` (zero-copy) | `nlohmann/json` (DOM, copies) | `encoding/json` (reflection) | C extension |
+| Schema compile | once | once | once | once |
+| Memory model | no GC | no GC | GC pauses | GC |
+| Regex | compiled at schema load | compiled at schema load | compiled at schema load | Python re |
+
+Replacing `nlohmann/json` with `rapidjson` in the C++ implementation
+would likely push C++ ahead of Rust for raw throughput.
+
+---
+
+## Project structure
 
 ```
 json-validator/
-├── rust/                       # Rust  (serde_json + jsonschema crate)
+├── rust/                       Rust  — serde_json + jsonschema crate + clap
 │   ├── src/main.rs
 │   └── Cargo.toml
-├── go/                         # Go    (encoding/json + santhosh-tekuri/jsonschema)
+├── go/                         Go    — encoding/json + santhosh-tekuri/jsonschema/v5
 │   ├── validator.go
 │   └── go.mod
-├── cpp/                        # C++17 (nlohmann/json + json-schema-validator)
+├── cpp/                        C++17 — nlohmann/json + nlohmann/json-schema-validator
 │   ├── validator.cpp
-│   └── CMakeLists.txt
-├── python/                     # Python (json stdlib + jsonschema)
+│   └── CMakeLists.txt          (FetchContent, no manual dependency install needed)
+├── python/                     Python — json stdlib + jsonschema
 │   └── validator.py
-├── schema/                     # JSON Schema and example files
-│   ├── complex_schema.json         # E-commerce schema used for benchmark (Draft 7)
+├── schema/
+│   ├── complex_schema.json     E-commerce Draft 7 schema (used for benchmark)
 │   ├── simple_schema.json
 │   ├── valid_example.json
 │   └── invalid_example.json
-└── benchmark/                  # Benchmark tooling
-    ├── generate_testdata.py        # Generates 100 test files (~1.5 MB each)
-    └── benchmark.sh                # Runs per-file + batch comparison
+└── benchmark/
+    ├── generate_testdata.py    Generates 100 test files
+    └── benchmark.sh            Runs the full comparison
 ```
 
 ---
 
 ## Prerequisites
 
-| Language | Required |
-|----------|----------|
-| Rust | `rustup` / `cargo` ≥ 1.70 |
-| Go | Go ≥ 1.21 |
-| C++ | `cmake` ≥ 3.14, `make`, GCC/Clang with C++17 support |
-| Python | Python ≥ 3.8 + `pip install jsonschema colorama` |
+| Language | Install |
+|----------|---------|
+| Rust | [rustup.rs](https://rustup.rs) |
+| Go | [go.dev/dl](https://go.dev/dl) ≥ 1.21 |
+| C++ | `apt install cmake build-essential` |
+| Python | `pip install jsonschema colorama` |
 
 ---
 
 ## Build
 
 ### Rust
-
 ```bash
-cd rust
-cargo build --release
-# Binary: rust/target/release/json-validator
+cd rust && cargo build --release
+# → rust/target/release/json-validator
 ```
 
 ### Go
-
 ```bash
-cd go
-go mod tidy
-go build -o validator .
-# Binary: go/validator
+cd go && go mod tidy && go build -o validator .
+# → go/validator
 ```
 
 ### C++
-
 ```bash
-cd cpp
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(nproc)
-# Binary: cpp/build/validator
+cd cpp && mkdir -p build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+# → cpp/build/validator
 ```
 
-> **clangd / IDE support** — after running cmake, create the symlink for `compile_commands.json`:
+> **clangd support** — after cmake, symlink `compile_commands.json`:
 > ```bash
 > ln -sf build/compile_commands.json cpp/compile_commands.json
 > ```
 
 ### Python
-
 ```bash
-pip install jsonschema colorama
-# No build step needed
+pip install jsonschema colorama   # no build step
 ```
 
 ---
 
 ## Usage
 
+All four validators share the same interface:
+
+```
+validator -s SCHEMA (-f FILE | -b DIR) [-v] [-j]
+
+  -f FILE      Single-file mode
+  -s SCHEMA    JSON Schema file
+  -b DIR       Batch mode (schema compiled once for all *.json in DIR)
+  -v           Verbose errors (schema path + failing value)
+  -j           JSON output (for scripting / CI pipelines)
+```
+
 ### Single file
 
 ```bash
-# Rust
-./rust/target/release/json-validator -f schema/valid_example.json -s schema/simple_schema.json
-
-# Go
-./go/validator -f schema/valid_example.json -s schema/simple_schema.json
-
-# C++
-./cpp/build/validator -f schema/valid_example.json -s schema/simple_schema.json
-
-# Python
-python3 python/validator.py -f schema/valid_example.json -s schema/simple_schema.json
+./rust/target/release/json-validator \
+  -f schema/valid_example.json \
+  -s schema/simple_schema.json
 ```
 
-### With verbose error details
+```
+ JSON Validator
+───────────────────────────────────────────────────────
+  File  :  schema/valid_example.json
+  Schema:  schema/simple_schema.json
+───────────────────────────────────────────────────────
+  ✓ JSON is valid! Everything looks good.
+  Time  :  3.21ms
+───────────────────────────────────────────────────────
+```
+
+### Invalid file with `-v`
 
 ```bash
-./rust/target/release/json-validator \
+./go/validator \
   -f schema/invalid_example.json \
   -s schema/simple_schema.json -v
 ```
 
-### JSON output (for scripting / CI)
+```
+ JSON Validator
+───────────────────────────────────────────────────────
+  ✗ 2 error(s) found:
+
+  [1] 12 is less than minimum of 18
+        at path  : /age
+        schema   : /properties/age/minimum
+
+  [2] "superuser" is not valid enum value
+        at path  : /roles/0
+───────────────────────────────────────────────────────
+```
+
+### JSON output (CI / scripting)
 
 ```bash
-./go/validator -f schema/valid_example.json -s schema/simple_schema.json -j
-# → { "valid": true, "errors": [], "elapsed": "4.21ms" }
+./cpp/build/validator \
+  -f schema/valid_example.json \
+  -s schema/simple_schema.json -j
+```
+
+```json
+{
+  "valid": true,
+  "errors": [],
+  "elapsed": "3.12ms"
+}
 ```
 
 ### Batch mode
 
-Schema compiled **once**, then all files validated in a single process:
-
 ```bash
-./rust/target/release/json-validator -b testdata/ -s schema/complex_schema.json -j
+./rust/target/release/json-validator \
+  -b testdata/ \
+  -s schema/complex_schema.json -j
+```
+
+```json
+{
+  "mode": "batch",
+  "total": 100,
+  "valid": 80,
+  "invalid": 20,
+  "elapsed": "1.298s",
+  "avg_ms_per_file": "12.91",
+  "throughput_fps": "77.5",
+  "throughput_mbps": "112.6"
+}
 ```
 
 ---
 
-## Benchmark
+## Running the benchmark
 
 ### 1. Generate test data
-
-Generates 100 JSON files (~1.45 MB each) in `testdata/`: 80 valid, 20 with deliberate schema violations.
 
 ```bash
 python3 benchmark/generate_testdata.py
 ```
 
+Produces 100 files in `testdata/` — 80 valid, 20 with deliberate schema violations
+(wrong enum values, missing required fields, out-of-range numbers, etc.).
+
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--count N` | 100 | Total number of files |
+| `--count N` | 100 | Number of files |
 | `--users N` | 500 | Users per file |
 | `--products N` | 200 | Products per file |
 | `--orders N` | 1500 | Orders per file |
 | `--out DIR` | `testdata` | Output directory |
 
-### 2. Run the benchmark
+### 2. Run
 
 ```bash
 bash benchmark/benchmark.sh
 ```
 
-The script automatically builds all validators, then runs two comparison modes:
-
-| Mode | What it measures |
-|------|-----------------|
-| **Per-file** | One process per file — real-world CLI usage, includes startup overhead |
-| **Batch** | One process for all 100 files — pure parsing + validation speed |
-
-#### Example output
-
-```
-  PART 1 — Per-file  (one process per file — includes startup overhead)
-  ──────────────────────────────────────────────────────────────────────
-  Language    Total (s)   Avg/file   Files/sec     OK  INVALID
-  ──────────────────────────────────────────────────────────────────────
-  Rust          2.002s     20.0ms      49.9/s      80       20   ★ fastest
-  C++           3.150s     31.5ms      31.7/s      80       20   ×1.6 slower
-  Go            7.187s     71.8ms      13.9/s      80       20   ×3.6 slower
-
-  PART 2 — Batch  (one process, schema compiled once — pure validation speed)
-  ──────────────────────────────────────────────────────────────────────
-  Language    Wall (s)   Avg/file   Files/sec   Throughput    OK  INVALID
-  ──────────────────────────────────────────────────────────────────────
-  Rust          1.375s    13.75ms     72.7/s    105.7 MB/s    80       20   ★ fastest
-  C++           2.493s    24.93ms     40.1/s     58.3 MB/s    80       20   ×1.8 slower
-  Go            7.929s    79.29ms     12.6/s     18.3 MB/s    80       20   ×5.8 slower
-```
-
-### Why these differences?
-
-**Per-file mode** — process startup overhead dominates on short workloads:
-
-| Language | Startup cost |
-|----------|-------------|
-| Rust | ~1 ms |
-| C++ | ~5–10 ms |
-| Go | ~10–15 ms (GC runtime init) |
-| Python | ~30–50 ms (interpreter) |
-
-**Batch mode** — pure parsing + validation throughput:
-- **Rust** wins: `serde_json` is among the fastest JSON parsers available
-- **C++** is second: `nlohmann/json` is ergonomic but not maximally fast; replacing it with `rapidjson` would likely surpass Rust
-- **Go** is slow here: `encoding/json` is reflection-based, much slower than native parsers
+The script builds all validators automatically, then runs both **per-file** and **batch** modes
+and prints the comparison table with speedup ratios.
 
 ---
 
 ## Schema
 
-The benchmark uses a complex e-commerce schema (`schema/complex_schema.json`, JSON Schema Draft 7):
+`schema/complex_schema.json` — JSON Schema Draft 7, e-commerce dataset:
 
-- Nested `$ref` definitions: `User`, `Product`, `Order`, `Address`, `OrderItem`
-- Pattern constraints: `^usr_[a-z0-9]{8}$`, email regex, SKU format (`^[A-Z]{2,4}-[0-9]{4,6}-[A-Z0-9]{2,4}$`)
-- Enum validation, `minimum`/`maximum`, `uniqueItems`, `minItems`
-- `additionalProperties: false` on every object
+```
+EcommerceDataset
+├── metadata      { version, generated_at, environment, counts… }
+├── users[]       { id (^usr_[a-z0-9]{8}$), email, age ≥ 18, address, roles (enum),
+│                   preferences, status (enum), created_at }
+│   └── address   { street, city, state, country (^[A-Z]{2}$), postal_code }
+├── products[]    { id (^prod_[a-z0-9]{8}$), sku (^[A-Z]{2,4}-[0-9]{4,6}-…$),
+│                   price ≥ 0.01, category (enum), tags (unique), stock ≥ 0, status }
+└── orders[]      { id (^ord_[a-z0-9]{12}$), user_id, items[] (minItems: 1),
+                    subtotal, tax, total ≥ 0.01, status (enum), payment_method (enum) }
+```
 
-Each generated file contains ~500 users, ~200 products, ~1500 orders (~1.45 MB compact JSON).
+All objects use `additionalProperties: false`.
+Each generated file: ~500 users · ~200 products · ~1500 orders · **~1.45 MB**.
 
 ---
 
@@ -229,6 +314,8 @@ Each generated file contains ~500 users, ~200 products, ~1500 orders (~1.45 MB c
 | Code | Meaning |
 |------|---------|
 | `0` | JSON is valid |
-| `1` | JSON is invalid, or an error occurred (bad path, invalid schema…) |
+| `1` | JSON invalid, or error (bad path, invalid schema…) |
 
-Useful in shell scripts: `./validator -f file.json -s schema.json && echo OK || echo INVALID`
+```bash
+./rust/target/release/json-validator -f file.json -s schema.json && echo OK || echo INVALID
+```
