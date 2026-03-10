@@ -25,3 +25,5 @@ venv/
 *.swo
 .idea/
 .vscode/
+
+env/
