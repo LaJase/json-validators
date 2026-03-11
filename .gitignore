@@ -30,3 +30,7 @@ CLAUDE.md
 .vscode/
 
 env/
+
+# Node.js
+nodejs/node_modules/
+nodejs/dist/

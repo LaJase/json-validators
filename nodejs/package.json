@@ -1,0 +1,20 @@
+{
+  "name": "json-validator",
+  "version": "1.0.0",
+  "description": "JSON Schema validator — Node.js/TypeScript implementation",
+  "main": "dist/validator.js",
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/validator.ts --bundle --platform=node --target=node20 --outfile=dist/validator.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "chalk": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}
