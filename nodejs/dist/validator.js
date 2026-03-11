@@ -7346,6 +7346,9 @@ function formatDuration(ns) {
   return `${(micros / 1e6).toFixed(3)}s`;
 }
 var SEP = source_default.dim("\u2500".repeat(55));
+function errMsg(e) {
+  return e instanceof Error ? e.message : String(e);
+}
 function fatal(msg, jsonOutput) {
   if (jsonOutput) {
     process.stdout.write(JSON.stringify({ valid: false, error: msg }, null, 2) + "\n");
@@ -7358,16 +7361,16 @@ ${SEP}
   process.exit(1);
 }
 function readJson(path, jsonOutput) {
-  let content;
+  let content = "";
   try {
     content = (0, import_fs.readFileSync)((0, import_path.resolve)(path), "utf8");
   } catch (e) {
-    fatal(`Cannot read '${path}': ${e.message}`, jsonOutput);
+    fatal(`Cannot read '${path}': ${errMsg(e)}`, jsonOutput);
   }
   try {
     return JSON.parse(content);
   } catch (e) {
-    fatal(`Invalid JSON in '${path}': ${e.message}`, jsonOutput);
+    fatal(`Invalid JSON in '${path}': ${errMsg(e)}`, jsonOutput);
   }
 }
 function compileSchema(schemaPath, jsonOutput) {
@@ -7377,7 +7380,7 @@ function compileSchema(schemaPath, jsonOutput) {
   try {
     return ajv.compile(schema);
   } catch (e) {
-    fatal(`Schema compilation failed: ${e.message}`, jsonOutput);
+    fatal(`Schema compilation failed: ${errMsg(e)}`, jsonOutput);
   }
 }
 function runSingle(args2) {

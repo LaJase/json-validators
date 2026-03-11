@@ -53,6 +53,10 @@ function formatDuration(ns: bigint): string {
 
 const SEP = chalk.dim("─".repeat(55));
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 function fatal(msg: string, jsonOutput: boolean): never {
   if (jsonOutput) {
     process.stdout.write(JSON.stringify({ valid: false, error: msg }, null, 2) + "\n");
@@ -63,16 +67,16 @@ function fatal(msg: string, jsonOutput: boolean): never {
 }
 
 function readJson(path: string, jsonOutput: boolean): unknown {
-  let content: string;
+  let content = "";
   try {
     content = readFileSync(resolve(path), "utf8");
   } catch (e) {
-    fatal(`Cannot read '${path}': ${(e as Error).message}`, jsonOutput);
+    fatal(`Cannot read '${path}': ${errMsg(e)}`, jsonOutput);
   }
   try {
-    return JSON.parse(content!);
+    return JSON.parse(content);
   } catch (e) {
-    fatal(`Invalid JSON in '${path}': ${(e as Error).message}`, jsonOutput);
+    fatal(`Invalid JSON in '${path}': ${errMsg(e)}`, jsonOutput);
   }
 }
 
@@ -87,7 +91,7 @@ function compileSchema(schemaPath: string, jsonOutput: boolean): ValidateFn {
   try {
     return ajv.compile(schema as object);
   } catch (e) {
-    fatal(`Schema compilation failed: ${(e as Error).message}`, jsonOutput);
+    fatal(`Schema compilation failed: ${errMsg(e)}`, jsonOutput);
   }
 }
 
