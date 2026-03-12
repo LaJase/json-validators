@@ -231,7 +231,7 @@ fi
 
 if [[ "$SKIP_NODE" -eq 0 ]]; then
     echo -ne "  ${CYAN}[Node]  ${RESET} validating... "
-    run_per_file "node $ROOT/nodejs/dist/validator.js -f FILE -s $SCHEMA -j"
+    run_per_file "$NODE_BIN -f FILE -s $SCHEMA -j"
     echo -e "${GREEN}done${RESET}"
     PF_LABELS+=("Node  "); PF_TIMES+=("$ELAPSED"); PF_OK+=("$OK"); PF_FAIL+=("$FAIL")
 fi
@@ -297,7 +297,7 @@ fi
 
 if [[ "$SKIP_NODE" -eq 0 ]]; then
     echo -ne "  ${CYAN}[Node]  ${RESET} batch... "
-    run_batch "node $ROOT/nodejs/dist/validator.js -b $TESTDATA -s $SCHEMA -j"
+    run_batch "$NODE_BIN -b $TESTDATA -s $SCHEMA -j"
     echo -e "${GREEN}done${RESET}"
     BT_LABELS+=("Node  "); BT_TIMES+=("$ELAPSED")
     BT_FPS+=("$BATCH_FPS"); BT_MBPS+=("$BATCH_MBPS"); BT_AVG+=("$BATCH_AVG")
