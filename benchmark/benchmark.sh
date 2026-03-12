@@ -13,6 +13,7 @@ TESTDATA="$ROOT/testdata"
 RUST_BIN="$ROOT/rust/target/release/json-validator"
 GO_BIN="$ROOT/go/validator"
 CPP_BIN="$ROOT/cpp/build/validator"
+NODE_BIN="node $ROOT/nodejs/dist/validator.js"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'
 YELLOW='\033[1;33m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
@@ -28,6 +29,7 @@ check_deps() {
     command -v go      &>/dev/null || missing+=("go")
     command -v cargo   &>/dev/null || missing+=("cargo (Rust)")
     command -v bc      &>/dev/null || missing+=("bc")
+    command -v node &>/dev/null || missing+=("node (nodejs.org >= 20)")
     if [[ ${#missing[@]} -gt 0 ]]; then
         echo -e "${RED}Missing dependencies: ${missing[*]}${RESET}" >&2; exit 1
     fi
@@ -114,7 +116,7 @@ print_batch_row() {
 
 echo
 echo -e "${BOLD}╔══════════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}║    JSON Validator — Benchmark  (Rust / Go / C++ / Python)   ║${RESET}"
+echo -e "${BOLD}║ JSON Validator — Benchmark (Rust/Go/C++/Python/Node.js)     ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════════════════════════╝${RESET}"
 echo
 
@@ -174,6 +176,20 @@ else
     echo -e "  ${YELLOW}⚠  jsonschema not found — skipping Python (pip install jsonschema colorama)${RESET}"
 fi
 
+sep
+echo -e "${CYAN}► Building Node.js (TypeScript → esbuild bundle)...${RESET}"
+SKIP_NODE=1
+if command -v node &>/dev/null && command -v npm &>/dev/null; then
+    if (cd "$ROOT/nodejs" && npm ci --silent 2>/dev/null && npm run build --silent 2>/dev/null); then
+        echo -e "  ${GREEN}✓ bundle ready: nodejs/dist/validator.js${RESET}"
+        SKIP_NODE=0
+    else
+        echo -e "  ${YELLOW}⚠  Node.js build failed — skipping${RESET}"
+    fi
+else
+    echo -e "  ${YELLOW}⚠  node/npm not found — skipping Node.js (install from nodejs.org or nvm install 20)${RESET}"
+fi
+
 echo; sep_thick
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -213,6 +229,13 @@ if [[ "$SKIP_PYTHON" -eq 0 ]]; then
     PF_LABELS+=("Python"); PF_TIMES+=("$ELAPSED"); PF_OK+=("$OK"); PF_FAIL+=("$FAIL")
 fi
 
+if [[ "$SKIP_NODE" -eq 0 ]]; then
+    echo -ne "  ${CYAN}[Node]  ${RESET} validating... "
+    run_per_file "node $ROOT/nodejs/dist/validator.js -f FILE -s $SCHEMA -j"
+    echo -e "${GREEN}done${RESET}"
+    PF_LABELS+=("Node  "); PF_TIMES+=("$ELAPSED"); PF_OK+=("$OK"); PF_FAIL+=("$FAIL")
+fi
+
 echo
 PF_FASTEST="${PF_TIMES[0]}"
 for t in "${PF_TIMES[@]}"; do
@@ -223,7 +246,7 @@ for i in "${!PF_LABELS[@]}"; do
 done
 
 sep
-echo -e "  ${DIM}Startup overhead included (~1 ms Rust, ~10-15 ms Go, ~30-50 ms Python per process)${RESET}"
+echo -e "  ${DIM}Startup overhead included (~1 ms Rust, ~10-15 ms Go, ~30-50 ms Python/Node per process)${RESET}"
 
 echo; sep_thick
 
@@ -268,6 +291,15 @@ if [[ "$SKIP_PYTHON" -eq 0 ]]; then
     run_batch "python3 $ROOT/python/validator.py -b $TESTDATA -s $SCHEMA -j"
     echo -e "${GREEN}done${RESET}"
     BT_LABELS+=("Python"); BT_TIMES+=("$ELAPSED")
+    BT_FPS+=("$BATCH_FPS"); BT_MBPS+=("$BATCH_MBPS"); BT_AVG+=("$BATCH_AVG")
+    BT_OK+=("$BATCH_VALID"); BT_FAIL+=("$BATCH_INVALID")
+fi
+
+if [[ "$SKIP_NODE" -eq 0 ]]; then
+    echo -ne "  ${CYAN}[Node]  ${RESET} batch... "
+    run_batch "node $ROOT/nodejs/dist/validator.js -b $TESTDATA -s $SCHEMA -j"
+    echo -e "${GREEN}done${RESET}"
+    BT_LABELS+=("Node  "); BT_TIMES+=("$ELAPSED")
     BT_FPS+=("$BATCH_FPS"); BT_MBPS+=("$BATCH_MBPS"); BT_AVG+=("$BATCH_AVG")
     BT_OK+=("$BATCH_VALID"); BT_FAIL+=("$BATCH_INVALID")
 fi
