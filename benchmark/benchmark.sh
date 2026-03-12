@@ -29,7 +29,6 @@ check_deps() {
     command -v go      &>/dev/null || missing+=("go")
     command -v cargo   &>/dev/null || missing+=("cargo (Rust)")
     command -v bc      &>/dev/null || missing+=("bc")
-    command -v node &>/dev/null || missing+=("node (nodejs.org >= 20)")
     if [[ ${#missing[@]} -gt 0 ]]; then
         echo -e "${RED}Missing dependencies: ${missing[*]}${RESET}" >&2; exit 1
     fi
