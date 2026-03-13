@@ -51,6 +51,7 @@ This isolates pure parsing + validation throughput.
              ┊
   222.8 ─── ┤ Node   ████████████████████████████████████████  222.8 MB/s  153.3/s  ★
   112.6 ─── ┤ Rust   █████████████████████                     112.6 MB/s   77.5/s
+  109.2 ─── ┤ C++ (RJ) ████████████████████                    109.2 MB/s   75.1/s
    60.8 ─── ┤ C++    ███████████                                60.8 MB/s   41.8/s
    20.9 ─── ┤ Go     ████                                       20.9 MB/s   14.4/s
     4.8 ─── ┤ Python █                                           4.8 MB/s    3.3/s
@@ -61,6 +62,7 @@ This isolates pure parsing + validation throughput.
 |-----------|-----------|-----------|-----------|-------------|---------------|
 | **Node.js** | 0.653 s | 6.53 ms   | 153.3 /s  | 222.8 MB/s  | ★ baseline    |
 | **Rust**  | 1.298 s   | 12.91 ms  | 77.5 /s   | 112.6 MB/s  | ×1.98 slower  |
+| **C++ (RapidJSON)** | 1.331 s | 13.31 ms | 75.1 /s | 109.2 MB/s | ×2.04 slower |
 | **C++**   | 2.399 s   | 23.92 ms  | 41.8 /s   |  60.8 MB/s  |  ×3.67 slower |
 | **Go**    | 6.955 s   | 69.47 ms  | 14.4 /s   |  20.9 MB/s  | ×10.90 slower |
 | **Python**| 30.421 s  | 303.42 ms |  3.3 /s   |   4.8 MB/s  | ×46.42 slower |
@@ -89,15 +91,16 @@ The difference between per-file and batch time, divided across 100 processes:
 
 ### Why is Node.js fastest in batch mode?
 
-| Factor | Node.js | Rust | C++ | Go | Python |
-|--------|---------|------|-----|----|--------|
-| JSON parser | V8 `JSON.parse` (C++) | `serde_json` (zero-copy) | `nlohmann/json` (DOM, copies) | `encoding/json` (reflection) | C extension |
-| Schema compile | once | once | once | once | once |
-| Memory model | JIT (no GC pauses in batch) | no GC | no GC | GC pauses | GC |
-| Regex | compiled at schema load | compiled at schema load | compiled at schema load | compiled at schema load | Python re |
+| Factor | Node.js | Rust | C++ (RapidJSON) | C++ | Go | Python |
+|--------|---------|------|-----------------|-----|----|--------|
+| JSON parser | V8 `JSON.parse` (C++) | `serde_json` (zero-copy) | RapidJSON in-situ (C++) | `nlohmann/json` (DOM, copies) | `encoding/json` (reflection) | C extension |
+| Schema compile | once | once | once | once | once | once |
+| Memory model | JIT (no GC pauses in batch) | no GC | no GC | no GC | GC pauses | GC |
+| Regex | compiled at schema load | compiled at schema load | compiled at schema load | compiled at schema load | compiled at schema load | Python re |
 
-Replacing `nlohmann/json` with `rapidjson` in the C++ implementation
-would likely push C++ ahead of Rust for raw throughput.
+The RapidJSON variant (`validator_rj`) uses RapidJSON in-situ parsing with valijson
+and reaches 109.2 MB/s — within 3% of Rust's 112.6 MB/s — confirming that the JSON
+parser is the primary bottleneck in the nlohmann C++ implementation.
 
 ---
 
@@ -111,8 +114,9 @@ json-validator/
 ├── go/                         Go    — encoding/json + santhosh-tekuri/jsonschema/v5
 │   ├── validator.go
 │   └── go.mod
-├── cpp/                        C++17 — nlohmann/json + nlohmann/json-schema-validator
-│   ├── validator.cpp
+├── cpp/                        C++17 — two implementations built from the same CMakeLists.txt
+│   ├── validator.cpp           nlohmann/json + nlohmann/json-schema-validator (validator)
+│   ├── validator_rapidjson.cpp RapidJSON + valijson (validator_rj — 1.80× faster in batch)
 │   └── CMakeLists.txt          (FetchContent, no manual dependency install needed)
 ├── python/                     Python — json stdlib + jsonschema
 │   └── validator.py
@@ -163,6 +167,12 @@ cd go && go mod tidy && go build -o validator .
 cd cpp && mkdir -p build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
 # → cpp/build/validator
+```
+
+### C++ (RapidJSON variant)
+```bash
+cd cpp/build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc) validator_rj
+# → cpp/build/validator_rj
 ```
 
 > **clangd support** — after cmake, symlink `compile_commands.json`:

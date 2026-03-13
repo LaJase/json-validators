@@ -47,3 +47,29 @@ target_link_libraries(validator PRIVATE
     nlohmann_json::nlohmann_json
     nlohmann_json_schema_validator
 )
+
+# ── RapidJSON ──────────────────────────────────────────────────────────────────
+FetchContent_Declare(
+    rapidjson
+    GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(rapidjson)
+
+# ── valijson ───────────────────────────────────────────────────────────────────
+FetchContent_Declare(
+    valijson
+    GIT_REPOSITORY https://github.com/tristanpenman/valijson.git
+    GIT_TAG        master
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(valijson)
+
+add_executable(validator_rj validator_rapidjson.cpp)
+target_compile_definitions(validator_rj PRIVATE RAPIDJSON_HAS_STDSTRING=1)
+target_include_directories(validator_rj PRIVATE
+    ${rapidjson_SOURCE_DIR}/include
+    ${valijson_SOURCE_DIR}/include
+)
+# Both rapidjson and valijson are header-only — no target_link_libraries needed
