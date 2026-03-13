@@ -116,7 +116,7 @@ json-validator/
 │   └── go.mod
 ├── cpp/                        C++17 — two implementations built from the same CMakeLists.txt
 │   ├── validator.cpp           nlohmann/json + nlohmann/json-schema-validator (validator)
-│   ├── validator_rj.cpp        RapidJSON + valijson (validator_rj — 1.84× faster in batch)
+│   ├── validator_rapidjson.cpp RapidJSON + valijson (validator_rj — 1.80× faster in batch)
 │   └── CMakeLists.txt          (FetchContent, no manual dependency install needed)
 ├── python/                     Python — json stdlib + jsonschema
 │   └── validator.py
