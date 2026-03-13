@@ -52,7 +52,7 @@ target_link_libraries(validator PRIVATE
 FetchContent_Declare(
     rapidjson
     GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-    GIT_TAG        v1.1.0
+    GIT_TAG        master
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(rapidjson)
@@ -61,7 +61,7 @@ FetchContent_MakeAvailable(rapidjson)
 FetchContent_Declare(
     valijson
     GIT_REPOSITORY https://github.com/tristanpenman/valijson.git
-    GIT_TAG        v0.7
+    GIT_TAG        master
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(valijson)
