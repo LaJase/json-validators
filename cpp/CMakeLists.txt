@@ -55,10 +55,7 @@ FetchContent_Declare(
     GIT_TAG        v1.1.0
     GIT_SHALLOW    TRUE
 )
-FetchContent_GetProperties(rapidjson)
-if(NOT rapidjson_POPULATED)
-    FetchContent_Populate(rapidjson)
-endif()
+FetchContent_MakeAvailable(rapidjson)
 
 # ── valijson ───────────────────────────────────────────────────────────────────
 FetchContent_Declare(
@@ -67,10 +64,7 @@ FetchContent_Declare(
     GIT_TAG        v0.7
     GIT_SHALLOW    TRUE
 )
-FetchContent_GetProperties(valijson)
-if(NOT valijson_POPULATED)
-    FetchContent_Populate(valijson)
-endif()
+FetchContent_MakeAvailable(valijson)
 
 add_executable(validator_rj validator_rapidjson.cpp)
 target_compile_definitions(validator_rj PRIVATE RAPIDJSON_HAS_STDSTRING=1)
@@ -78,3 +72,4 @@ target_include_directories(validator_rj PRIVATE
     ${rapidjson_SOURCE_DIR}/include
     ${valijson_SOURCE_DIR}/include
 )
+# Both rapidjson and valijson are header-only — no target_link_libraries needed
