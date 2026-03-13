@@ -5,6 +5,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <getopt.h>
 #include <unistd.h>
 #include <vector>
 
@@ -261,8 +262,11 @@ static void run_single(const std::string& file_path, const std::string& schema_p
 
     if (errors.empty()) {
         if (json_output) {
-            std::cout << "{\"valid\":true,\"errors\":[],"
-                      << "\"elapsed\":\"" << format_duration(elapsed) << "\"}\n";
+            std::cout << "{\n"
+                      << "  \"valid\": true,\n"
+                      << "  \"errors\": [],\n"
+                      << "  \"elapsed\": \"" << format_duration(elapsed) << "\"\n"
+                      << "}\n";
         } else {
             std::cout << "  " << green("✓") << " "
                       << green("JSON is valid! Everything looks good.") << "\n"
@@ -274,14 +278,19 @@ static void run_single(const std::string& file_path, const std::string& schema_p
     }
 
     if (json_output) {
-        std::cout << "{\"valid\":false,\"error_count\":" << errors.size()
-                  << ",\"errors\":[";
+        std::cout << "{\n"
+                  << "  \"valid\": false,\n"
+                  << "  \"error_count\": " << errors.size() << ",\n"
+                  << "  \"errors\": [\n";
         for (size_t i = 0; i < errors.size(); ++i) {
-            if (i) std::cout << ",";
-            std::cout << "{\"path\":" << json_str(errors[i].path)
+            std::cout << "    {\"path\":" << json_str(errors[i].path)
                       << ",\"message\":" << json_str(errors[i].message) << "}";
+            if (i + 1 < errors.size()) std::cout << ",";
+            std::cout << "\n";
         }
-        std::cout << "],\"elapsed\":\"" << format_duration(elapsed) << "\"}\n";
+        std::cout << "  ],\n"
+                  << "  \"elapsed\": \"" << format_duration(elapsed) << "\"\n"
+                  << "}\n";
     } else {
         std::cout << "  " << red("✗") << " "
                   << bold_red(std::to_string(errors.size())) << " error(s) found:\n\n";
