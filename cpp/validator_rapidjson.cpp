@@ -78,9 +78,22 @@ static std::string json_str(const std::string& s) {
 static bool load_file(const std::string& path, std::vector<char>& buf, std::string& err) {
     FILE* fp = fopen(path.c_str(), "rb");
     if (!fp) { err = "Cannot read '" + path + "'"; return false; }
-    fseek(fp, 0, SEEK_END);
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        err = "Seek failed on '" + path + "'";
+        return false;
+    }
     long sz = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
+    if (sz < 0) {
+        fclose(fp);
+        err = "Cannot determine size of '" + path + "'";
+        return false;
+    }
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        err = "Seek failed on '" + path + "'";
+        return false;
+    }
     buf.resize(static_cast<size_t>(sz) + 1);
     size_t n = fread(buf.data(), 1, static_cast<size_t>(sz), fp);
     buf[n] = '\0';
@@ -140,9 +153,13 @@ static std::vector<ErrorEntry> validate_doc(const valijson::Schema& schema,
     valijson::Validator validator;
     valijson::ValidationResults results;
     valijson::adapters::RapidJsonAdapter adapter(doc);
-    validator.validate(schema, adapter, &results);
-
     std::vector<ErrorEntry> errors;
+    bool valid = validator.validate(schema, adapter, &results);
+    if (!valid && results.empty()) {
+        // validate() returned false but populated no results — internal error
+        errors.push_back({"", "Validation failed (internal error)"});
+        return errors;
+    }
     valijson::ValidationResults::Error e;
     while (results.popError(e)) {
         std::string ctx;
