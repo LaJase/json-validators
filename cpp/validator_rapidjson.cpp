@@ -155,7 +155,7 @@ static std::vector<ErrorEntry> validate_doc(const valijson::Schema& schema,
     valijson::adapters::RapidJsonAdapter adapter(doc);
     std::vector<ErrorEntry> errors;
     bool valid = validator.validate(schema, adapter, &results);
-    if (!valid && results.empty()) {
+    if (!valid && results.numErrors() == 0) {
         // validate() returned false but populated no results — internal error
         errors.push_back({"", "Validation failed (internal error)"});
         return errors;
