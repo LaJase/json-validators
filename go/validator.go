@@ -109,7 +109,7 @@ func runBatch(batchDir, schemaPath string, jsonOutput bool) {
 	if err != nil {
 		fatal(fmt.Sprintf("cannot read directory '%s': %v", batchDir, err), jsonOutput)
 	}
-	var files []string
+	files := make([]string, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
 			files = append(files, filepath.Join(batchDir, e.Name()))
