@@ -7,6 +7,16 @@
 # ══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
+# ── CLI args ──────────────────────────────────────────────────────────────────
+
+N_REQUESTED=100
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --files) N_REQUESTED="$2"; shift 2 ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCHEMA="$ROOT/schema/complex_schema.json"
 TESTDATA="$ROOT/testdata"
