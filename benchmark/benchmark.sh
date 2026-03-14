@@ -11,14 +11,20 @@ set -euo pipefail
 
 N_REQUESTED=100
 while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --files)
-            if [[ -z "${2:-}" ]] || ! [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
-                echo "Error: --files requires a positive integer" >&2; exit 1
-            fi
-            N_REQUESTED="$2"; shift 2 ;;
-        *) echo "Unknown option: $1" >&2; exit 1 ;;
-    esac
+  case "$1" in
+  --files)
+    if [[ -z "${2:-}" ]] || ! [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
+      echo "Error: --files requires a positive integer" >&2
+      exit 1
+    fi
+    N_REQUESTED="$2"
+    shift 2
+    ;;
+  *)
+    echo "Unknown option: $1" >&2
+    exit 1
+    ;;
+  esac
 done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -146,22 +152,22 @@ check_deps
 
 # ── Size guard ────────────────────────────────────────────────────────────────
 
-MAX_FILES_NO_CONFIRM=690   # 690 × 1.45 MB ≈ 1 GB
+MAX_FILES_NO_CONFIRM=690 # 690 × 1.45 MB ≈ 1 GB
 if [[ $N_REQUESTED -gt $MAX_FILES_NO_CONFIRM ]]; then
-    size_gb=$(echo "scale=2; $N_REQUESTED * 145 / 100000" | bc)
-    echo -e "${YELLOW}⚠  ${N_REQUESTED} files ≈ ${size_gb} GB on disk.${RESET}"
-    read -r -p "Continue? [y/N] " confirm
-    [[ "$confirm" =~ ^[yY]$ ]] || exit 0
+  size_gb=$(echo "scale=2; $N_REQUESTED * 145 / 100000" | bc)
+  echo -e "${YELLOW}⚠  ${N_REQUESTED} files ≈ ${size_gb} GB on disk.${RESET}"
+  read -r -p "Continue? [y/N] " confirm
+  [[ "$confirm" =~ ^[yY]$ ]] || exit 0
 fi
 
 # ── Generate test data if needed ──────────────────────────────────────────────
 
 CURRENT_COUNT=$(ls "$TESTDATA"/*.json 2>/dev/null | wc -l)
 if [[ "$CURRENT_COUNT" -ne "$N_REQUESTED" ]]; then
-    echo -e "${CYAN}► Generating ${N_REQUESTED} test files...${RESET}"
-    rm -f "$TESTDATA"/*.json
-    python3 "$ROOT/benchmark/generate_testdata.py" --count "$N_REQUESTED"
-    echo
+  echo -e "${CYAN}► Generating ${N_REQUESTED} test files...${RESET}"
+  rm -f "$TESTDATA"/*.json
+  python3 "$ROOT/benchmark/generate_testdata.py" --count "$N_REQUESTED"
+  echo
 fi
 
 N_FILES=$(ls "$TESTDATA"/*.json | wc -l)
@@ -248,13 +254,10 @@ sep_thick
 echo
 echo -e "${BOLD}  PART 1 — Per-file  ${DIM}(one process per file — includes startup overhead)${RESET}"
 sep
-printf "  ${BOLD}%-10s %12s %12s %12s %8s %8s${RESET}\n" \
-  "Language" "Total (s)" "Avg/file" "Files/sec" "OK" "INVALID"
-sep
 
 declare -a PF_LABELS PF_TIMES PF_OK PF_FAIL
 
-echo -ne "  ${CYAN}[Rust]${RESET}\t validating... "
+echo -ne "  ${CYAN}[Rust]${RESET}\t per-file... "
 run_per_file "$RUST_BIN -f FILE -s $SCHEMA -j"
 echo -e "${GREEN}done${RESET}"
 PF_LABELS+=("Rust  ")
@@ -262,7 +265,7 @@ PF_TIMES+=("$ELAPSED")
 PF_OK+=("$OK")
 PF_FAIL+=("$FAIL")
 
-echo -ne "  ${CYAN}[Go]${RESET}\t\t validating... "
+echo -ne "  ${CYAN}[Go]${RESET}\t\t per-file... "
 run_per_file "$GO_BIN -f FILE -s $SCHEMA -j"
 echo -e "${GREEN}done${RESET}"
 PF_LABELS+=("Go    ")
@@ -271,7 +274,7 @@ PF_OK+=("$OK")
 PF_FAIL+=("$FAIL")
 
 if [[ "$SKIP_GO_FAST" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[Go/fast]${RESET}\t validating... "
+  echo -ne "  ${CYAN}[Go/fast]${RESET}\t per-file... "
   run_per_file "$GO_FAST_BIN -f FILE -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   PF_LABELS+=("Go/fast")
@@ -281,7 +284,7 @@ if [[ "$SKIP_GO_FAST" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_CPP" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[C++]${RESET}\t\t validating... "
+  echo -ne "  ${CYAN}[C++]${RESET}\t\t per-file... "
   run_per_file "$CPP_BIN -f FILE -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   PF_LABELS+=("C++   ")
@@ -291,7 +294,7 @@ if [[ "$SKIP_CPP" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_CPP_RJ" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[C++/RJ]${RESET}\t validating... "
+  echo -ne "  ${CYAN}[C++/RJ]${RESET}\t per-file... "
   run_per_file "$CPP_RJ_BIN -f FILE -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   PF_LABELS+=("C++/RJ")
@@ -301,7 +304,7 @@ if [[ "$SKIP_CPP_RJ" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_PYTHON" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[Python]${RESET}\t validating... "
+  echo -ne "  ${CYAN}[Python]${RESET}\t per-file... "
   run_per_file "python3 $ROOT/python/validator.py -f FILE -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   PF_LABELS+=("Python")
@@ -311,7 +314,7 @@ if [[ "$SKIP_PYTHON" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_NODE" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[Node]${RESET}\t validating... "
+  echo -ne "  ${CYAN}[Node]${RESET}\t per-file... "
   run_per_file "$NODE_BIN -f FILE -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   PF_LABELS+=("Node  ")
@@ -321,6 +324,10 @@ if [[ "$SKIP_NODE" -eq 0 ]]; then
 fi
 
 echo
+sep
+printf "  ${BOLD}%-10s %12s %12s %12s %8s %8s${RESET}\n" \
+  "Language" "Total (s)" "Avg/file" "Files/sec" "OK" "INVALID"
+sep
 PF_FASTEST="${PF_TIMES[0]}"
 for t in "${PF_TIMES[@]}"; do
   (($(echo "$t < $PF_FASTEST" | bc -l))) && PF_FASTEST="$t"
@@ -342,13 +349,10 @@ sep_thick
 echo
 echo -e "${BOLD}  PART 2 — Batch  ${DIM}(one process, schema compiled once — pure validation speed)${RESET}"
 sep
-printf "  ${BOLD}%-10s %12s %12s %12s %14s %6s %8s${RESET}\n" \
-  "Language" "Wall (s)" "Avg/file" "Files/sec" "Throughput" "OK" "INVALID"
-sep
 
 declare -a BT_LABELS BT_TIMES BT_FPS BT_MBPS BT_AVG BT_OK BT_FAIL
 
-echo -ne "  ${CYAN}[Rust]  ${RESET} batch... "
+echo -ne "  ${CYAN}[Rust]${RESET}\t batch... "
 run_batch "$RUST_BIN -b $TESTDATA -s $SCHEMA -j"
 echo -e "${GREEN}done${RESET}"
 BT_LABELS+=("Rust  ")
@@ -359,7 +363,7 @@ BT_AVG+=("$BATCH_AVG")
 BT_OK+=("$BATCH_VALID")
 BT_FAIL+=("$BATCH_INVALID")
 
-echo -ne "  ${CYAN}[Go]    ${RESET} batch... "
+echo -ne "  ${CYAN}[Go]${RESET}\t\t batch... "
 run_batch "$GO_BIN -b $TESTDATA -s $SCHEMA -j"
 echo -e "${GREEN}done${RESET}"
 BT_LABELS+=("Go    ")
@@ -371,7 +375,7 @@ BT_OK+=("$BATCH_VALID")
 BT_FAIL+=("$BATCH_INVALID")
 
 if [[ "$SKIP_GO_FAST" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[Go/fast]${RESET} batch... "
+  echo -ne "  ${CYAN}[Go/fast]${RESET}\t batch... "
   run_batch "$GO_FAST_BIN -b $TESTDATA -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   BT_LABELS+=("Go/fast")
@@ -384,7 +388,7 @@ if [[ "$SKIP_GO_FAST" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_CPP" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[C++]   ${RESET} batch... "
+  echo -ne "  ${CYAN}[C++]${RESET}\t\t batch... "
   run_batch "$CPP_BIN -b $TESTDATA -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   BT_LABELS+=("C++   ")
@@ -397,7 +401,7 @@ if [[ "$SKIP_CPP" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_CPP_RJ" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[C++/RJ]${RESET} batch... "
+  echo -ne "  ${CYAN}[C++/RJ]${RESET}\t batch... "
   run_batch "$CPP_RJ_BIN -b $TESTDATA -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   BT_LABELS+=("C++/RJ")
@@ -410,7 +414,7 @@ if [[ "$SKIP_CPP_RJ" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_PYTHON" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[Python]${RESET} batch... "
+  echo -ne "  ${CYAN}[Python]${RESET}\t batch... "
   run_batch "python3 $ROOT/python/validator.py -b $TESTDATA -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   BT_LABELS+=("Python")
@@ -423,7 +427,7 @@ if [[ "$SKIP_PYTHON" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_NODE" -eq 0 ]]; then
-  echo -ne "  ${CYAN}[Node]  ${RESET} batch... "
+  echo -ne "  ${CYAN}[Node]${RESET}\t batch... "
   run_batch "$NODE_BIN -b $TESTDATA -s $SCHEMA -j"
   echo -e "${GREEN}done${RESET}"
   BT_LABELS+=("Node  ")
@@ -436,6 +440,10 @@ if [[ "$SKIP_NODE" -eq 0 ]]; then
 fi
 
 echo
+sep
+printf "  ${BOLD}%-10s %12s %12s %12s %14s %6s %8s${RESET}\n" \
+  "Language" "Wall (s)" "Avg/file" "Files/sec" "Throughput" "OK" "INVALID"
+sep
 BT_FASTEST="${BT_TIMES[0]}"
 for t in "${BT_TIMES[@]}"; do
   (($(echo "$t < $BT_FASTEST" | bc -l))) && BT_FASTEST="$t"
@@ -459,7 +467,7 @@ sep_thick
 echo
 echo -e "${BOLD}  Summary${RESET}"
 sep
-printf "  ${BOLD}%-10s  %18s  %18s  %20s${RESET}\n" \
+printf "  ${BOLD}%-10s  %18s  %18s  %25s${RESET}\n" \
   "Language" "Per-file total" "Batch total" "Startup overhead est."
 sep
 
@@ -468,7 +476,7 @@ for i in "${!PF_LABELS[@]}"; do
   pf="${PF_TIMES[$i]}"
   bt="${BT_TIMES[$i]}"
   overhead=$(echo "scale=0; ($pf - $bt) * 1000 / $N_FILES" | bc)
-  printf "  ${CYAN}%-10s${RESET}  %16ss  %16ss  %18s ms/process\n" \
+  printf "  ${CYAN}%-10s${RESET}  %16s s  %16s s  %13s ms/process\n" \
     "$lbl" "$pf" "$bt" "$overhead"
 done
 
