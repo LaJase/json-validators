@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+  set(CMAKE_BUILD_TYPE Release)
 endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -31,12 +31,12 @@ FetchContent_Declare(
     GIT_TAG        2.3.0
     GIT_SHALLOW    TRUE
 )
+set(BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 FetchContent_GetProperties(json_schema_validator)
 if(NOT json_schema_validator_POPULATED)
-    FetchContent_Populate(json_schema_validator)
-    set(BUILD_TESTS    OFF CACHE BOOL "" FORCE)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    add_subdirectory(
+  FetchContent_Populate(json_schema_validator)
+  add_subdirectory(
         ${json_schema_validator_SOURCE_DIR}
         ${json_schema_validator_BINARY_DIR}
     )
@@ -49,6 +49,9 @@ target_link_libraries(validator PRIVATE
 )
 
 # ── RapidJSON ──────────────────────────────────────────────────────────────────
+set(RAPIDJSON_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(RAPIDJSON_BUILD_DOC      OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     rapidjson
     GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
@@ -64,6 +67,9 @@ FetchContent_Declare(
     GIT_TAG        master
     GIT_SHALLOW    TRUE
 )
+set(valijson_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(valijson_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(valijson_BUILD_DOCS     OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(valijson)
 
 add_executable(validator_rj validator_rapidjson.cpp)
