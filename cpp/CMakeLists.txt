@@ -49,16 +49,20 @@ target_link_libraries(validator PRIVATE
 )
 
 # ── RapidJSON ──────────────────────────────────────────────────────────────────
-set(RAPIDJSON_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
-set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(RAPIDJSON_BUILD_DOC      OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     rapidjson
     GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
     GIT_TAG        master
     GIT_SHALLOW    TRUE
 )
-FetchContent_MakeAvailable(rapidjson)
+FetchContent_GetProperties(rapidjson)
+if(NOT rapidjson_POPULATED)
+    FetchContent_Populate(rapidjson)
+    set(RAPIDJSON_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+    set(RAPIDJSON_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(RAPIDJSON_BUILD_DOC      OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${rapidjson_SOURCE_DIR} ${rapidjson_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
 
 # ── valijson ───────────────────────────────────────────────────────────────────
 FetchContent_Declare(
