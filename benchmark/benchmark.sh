@@ -13,6 +13,7 @@ TESTDATA="$ROOT/testdata"
 RUST_BIN="$ROOT/rust/target/release/json-validator"
 GO_BIN="$ROOT/go/validator"
 CPP_BIN="$ROOT/cpp/build/validator"
+CPP_RJ_BIN="$ROOT/cpp/build/validator_rj"
 NODE_BIN="node $ROOT/nodejs/dist/validator.js"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'
@@ -151,13 +152,14 @@ echo -e "  ${GREEN}✓ ${RESET}$(file "$GO_BIN" | grep -oP 'ELF.*' | head -c60)"
 sep
 echo -e "${CYAN}► Building C++ (Release, -O3 -march=native)...${RESET}"
 CPP_BUILD_DIR="$ROOT/cpp/build"
-SKIP_CPP=1
+SKIP_CPP=1; SKIP_CPP_RJ=1
 if command -v cmake &>/dev/null && command -v make &>/dev/null; then
     mkdir -p "$CPP_BUILD_DIR"
     if (cd "$CPP_BUILD_DIR" && cmake .. -DCMAKE_BUILD_TYPE=Release -Wno-dev -DCMAKE_VERBOSE_MAKEFILE=OFF > /dev/null 2>&1 \
         && make -j"$(nproc)" > /dev/null 2>&1); then
-        echo -e "  ${GREEN}✓ ${RESET}$(file "$CPP_BIN" | grep -oP 'ELF.*' | head -c60)"
-        SKIP_CPP=0
+        echo -e "  ${GREEN}✓ nlohmann: ${RESET}$(file "$CPP_BIN"    | grep -oP 'ELF.*' | head -c60)"
+        echo -e "  ${GREEN}✓ rapidjson: ${RESET}$(file "$CPP_RJ_BIN" | grep -oP 'ELF.*' | head -c60)"
+        SKIP_CPP=0; SKIP_CPP_RJ=0
     else
         echo -e "  ${YELLOW}⚠  C++ build failed — skipping${RESET}"
     fi
@@ -221,6 +223,13 @@ if [[ "$SKIP_CPP" -eq 0 ]]; then
     PF_LABELS+=("C++   "); PF_TIMES+=("$ELAPSED"); PF_OK+=("$OK"); PF_FAIL+=("$FAIL")
 fi
 
+if [[ "$SKIP_CPP_RJ" -eq 0 ]]; then
+    echo -ne "  ${CYAN}[C++/RJ]${RESET} validating... "
+    run_per_file "$CPP_RJ_BIN -f FILE -s $SCHEMA -j"
+    echo -e "${GREEN}done${RESET}"
+    PF_LABELS+=("C++/RJ"); PF_TIMES+=("$ELAPSED"); PF_OK+=("$OK"); PF_FAIL+=("$FAIL")
+fi
+
 if [[ "$SKIP_PYTHON" -eq 0 ]]; then
     echo -ne "  ${CYAN}[Python]${RESET} validating... "
     run_per_file "python3 $ROOT/python/validator.py -f FILE -s $SCHEMA -j"
@@ -281,6 +290,15 @@ if [[ "$SKIP_CPP" -eq 0 ]]; then
     run_batch "$CPP_BIN -b $TESTDATA -s $SCHEMA -j"
     echo -e "${GREEN}done${RESET}"
     BT_LABELS+=("C++   "); BT_TIMES+=("$ELAPSED")
+    BT_FPS+=("$BATCH_FPS"); BT_MBPS+=("$BATCH_MBPS"); BT_AVG+=("$BATCH_AVG")
+    BT_OK+=("$BATCH_VALID"); BT_FAIL+=("$BATCH_INVALID")
+fi
+
+if [[ "$SKIP_CPP_RJ" -eq 0 ]]; then
+    echo -ne "  ${CYAN}[C++/RJ]${RESET} batch... "
+    run_batch "$CPP_RJ_BIN -b $TESTDATA -s $SCHEMA -j"
+    echo -e "${GREEN}done${RESET}"
+    BT_LABELS+=("C++/RJ"); BT_TIMES+=("$ELAPSED")
     BT_FPS+=("$BATCH_FPS"); BT_MBPS+=("$BATCH_MBPS"); BT_AVG+=("$BATCH_AVG")
     BT_OK+=("$BATCH_VALID"); BT_FAIL+=("$BATCH_INVALID")
 fi
