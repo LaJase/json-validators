@@ -155,6 +155,7 @@ fi
 CURRENT_COUNT=$(ls "$TESTDATA"/*.json 2>/dev/null | wc -l)
 if [[ "$CURRENT_COUNT" -ne "$N_REQUESTED" ]]; then
     echo -e "${CYAN}► Generating ${N_REQUESTED} test files...${RESET}"
+    rm -f "$TESTDATA"/*.json
     python3 "$ROOT/benchmark/generate_testdata.py" --count "$N_REQUESTED"
     echo
 fi

@@ -211,11 +211,6 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
 
-    # Remove stale files so the count matches exactly after generation
-    for old in os.listdir(args.out):
-        if old.endswith(".json"):
-            os.remove(os.path.join(args.out, old))
-
     n_invalid = max(1, args.count // 5)   # 20% invalid
     n_valid   = args.count - n_invalid
 
