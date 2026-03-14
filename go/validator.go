@@ -136,12 +136,14 @@ func runBatch(batchDir, schemaPath string, jsonOutput bool) {
 	var totalBytes int64
 
 	for _, path := range files {
-		info, _ := os.Stat(path)
-		if info != nil {
-			totalBytes += info.Size()
-		}
-		instance, err := readJSON(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
+			invalidCount++
+			continue
+		}
+		totalBytes += int64(len(data))
+		var instance interface{}
+		if err := json.Unmarshal(data, &instance); err != nil {
 			invalidCount++
 			continue
 		}
