@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -116,7 +115,6 @@ func runBatch(batchDir, schemaPath string, jsonOutput bool) {
 			files = append(files, filepath.Join(batchDir, e.Name()))
 		}
 	}
-	sort.Strings(files)
 
 	if len(files) == 0 {
 		fatal(fmt.Sprintf("no .json files found in '%s'", batchDir), jsonOutput)
