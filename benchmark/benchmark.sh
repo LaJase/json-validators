@@ -150,12 +150,13 @@ if [[ $N_REQUESTED -gt $MAX_FILES_NO_CONFIRM ]]; then
     [[ "$confirm" =~ ^[yY]$ ]] || exit 0
 fi
 
-# ── Generate test data if missing ─────────────────────────────────────────────
+# ── Generate test data if needed ──────────────────────────────────────────────
 
-if [[ ! -d "$TESTDATA" ]] || [[ $(ls "$TESTDATA"/*.json 2>/dev/null | wc -l) -lt 100 ]]; then
-  echo -e "${CYAN}► Generating test data...${RESET}"
-  python3 "$ROOT/benchmark/generate_testdata.py"
-  echo
+CURRENT_COUNT=$(ls "$TESTDATA"/*.json 2>/dev/null | wc -l)
+if [[ "$CURRENT_COUNT" -ne "$N_REQUESTED" ]]; then
+    echo -e "${CYAN}► Generating ${N_REQUESTED} test files...${RESET}"
+    python3 "$ROOT/benchmark/generate_testdata.py" --count "$N_REQUESTED"
+    echo
 fi
 
 N_FILES=$(ls "$TESTDATA"/*.json | wc -l)
