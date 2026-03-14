@@ -4,6 +4,7 @@ rust/target/
 # Go binary
 go/validator
 go/validator.exe
+go/fast/validator_fast
 
 # C++ build
 cpp/build/
