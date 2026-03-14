@@ -12,6 +12,7 @@ SCHEMA="$ROOT/schema/complex_schema.json"
 TESTDATA="$ROOT/testdata"
 RUST_BIN="$ROOT/rust/target/release/json-validator"
 GO_BIN="$ROOT/go/validator"
+GO_FAST_BIN="$ROOT/go/fast/validator_fast"
 CPP_BIN="$ROOT/cpp/build/validator"
 CPP_RJ_BIN="$ROOT/cpp/build/validator_rj"
 NODE_BIN="node $ROOT/nodejs/dist/validator.js"
@@ -150,6 +151,16 @@ echo -e "${CYAN}► Building Go...${RESET}"
 echo -e "  ${GREEN}✓ ${RESET}$(file "$GO_BIN" | grep -oP 'ELF.*' | head -c60)"
 
 sep
+echo -e "${CYAN}► Building Go/fast (goccy/go-json)...${RESET}"
+SKIP_GO_FAST=1
+if (cd "$ROOT/go/fast" && go mod tidy -e 2>/dev/null && go build -o validator_fast . 2>/dev/null); then
+    echo -e "  ${GREEN}✓ ${RESET}$(file "$GO_FAST_BIN" | grep -oP 'ELF.*' | head -c60)"
+    SKIP_GO_FAST=0
+else
+    echo -e "  ${YELLOW}⚠  Go/fast build failed — skipping${RESET}"
+fi
+
+sep
 echo -e "${CYAN}► Building C++ (Release, -O3 -march=native)...${RESET}"
 CPP_BUILD_DIR="$ROOT/cpp/build"
 SKIP_CPP=1; SKIP_CPP_RJ=1
@@ -215,6 +226,13 @@ echo -ne "  ${CYAN}[Go]    ${RESET} validating... "
 run_per_file "$GO_BIN -f FILE -s $SCHEMA -j"
 echo -e "${GREEN}done${RESET}"
 PF_LABELS+=("Go    "); PF_TIMES+=("$ELAPSED"); PF_OK+=("$OK"); PF_FAIL+=("$FAIL")
+
+if [[ "$SKIP_GO_FAST" -eq 0 ]]; then
+    echo -ne "  ${CYAN}[Go/fast]${RESET} validating... "
+    run_per_file "$GO_FAST_BIN -f FILE -s $SCHEMA -j"
+    echo -e "${GREEN}done${RESET}"
+    PF_LABELS+=("Go/fast"); PF_TIMES+=("$ELAPSED"); PF_OK+=("$OK"); PF_FAIL+=("$FAIL")
+fi
 
 if [[ "$SKIP_CPP" -eq 0 ]]; then
     echo -ne "  ${CYAN}[C++]   ${RESET} validating... "
@@ -284,6 +302,15 @@ echo -e "${GREEN}done${RESET}"
 BT_LABELS+=("Go    "); BT_TIMES+=("$ELAPSED")
 BT_FPS+=("$BATCH_FPS"); BT_MBPS+=("$BATCH_MBPS"); BT_AVG+=("$BATCH_AVG")
 BT_OK+=("$BATCH_VALID"); BT_FAIL+=("$BATCH_INVALID")
+
+if [[ "$SKIP_GO_FAST" -eq 0 ]]; then
+    echo -ne "  ${CYAN}[Go/fast]${RESET} batch... "
+    run_batch "$GO_FAST_BIN -b $TESTDATA -s $SCHEMA -j"
+    echo -e "${GREEN}done${RESET}"
+    BT_LABELS+=("Go/fast"); BT_TIMES+=("$ELAPSED")
+    BT_FPS+=("$BATCH_FPS"); BT_MBPS+=("$BATCH_MBPS"); BT_AVG+=("$BATCH_AVG")
+    BT_OK+=("$BATCH_VALID"); BT_FAIL+=("$BATCH_INVALID")
+fi
 
 if [[ "$SKIP_CPP" -eq 0 ]]; then
     echo -ne "  ${CYAN}[C++]   ${RESET} batch... "
