@@ -5,6 +5,7 @@ rust/target/
 go/validator
 go/validator.exe
 go/fast/validator_fast
+go/fast/json-validator-go-fast
 
 # C++ build
 cpp/build/
