@@ -116,7 +116,10 @@ json-validator/
 │   └── Cargo.toml
 ├── go/                         Go    — encoding/json + santhosh-tekuri/jsonschema/v5
 │   ├── validator.go
-│   └── go.mod
+│   ├── go.mod
+│   └── fast/                   Go (fast) — goccy/go-json drop-in replacement
+│       ├── validator_fast.go
+│       └── go.mod
 ├── cpp/                        C++17 — two implementations built from the same CMakeLists.txt
 │   ├── validator.cpp           nlohmann/json + nlohmann/json-schema-validator (validator)
 │   ├── validator_rapidjson.cpp RapidJSON + valijson (validator_rj — 1.80× faster in batch)
@@ -165,6 +168,13 @@ cd rust && cargo build --release
 ```bash
 cd go && go mod tidy && go build -o validator .
 # → go/validator
+```
+
+### Go (fast — goccy/go-json)
+
+```bash
+cd go/fast && go mod tidy && go build -o validator_fast .
+# → go/fast/validator_fast
 ```
 
 ### C++
@@ -347,11 +357,15 @@ Produces 100 files in `testdata/` — 80 valid, 20 with deliberate schema violat
 ### 2. Run
 
 ```bash
-bash benchmark/benchmark.sh
+bash benchmark/benchmark.sh              # default: 100 files
+bash benchmark/benchmark.sh --files 50  # custom file count
 ```
 
 The script builds all validators automatically, then runs both **per-file** and **batch** modes
 and prints the comparison table with speedup ratios.
+
+If `--files N` differs from the current `testdata/` count, files are regenerated automatically.
+Above 690 files (~1 GB on disk), a confirmation prompt is shown.
 
 ---
 
