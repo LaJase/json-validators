@@ -140,6 +140,16 @@ echo
 
 check_deps
 
+# ── Size guard ────────────────────────────────────────────────────────────────
+
+MAX_FILES_NO_CONFIRM=690   # 690 × 1.45 MB ≈ 1 GB
+if [[ $N_REQUESTED -gt $MAX_FILES_NO_CONFIRM ]]; then
+    size_gb=$(echo "scale=2; $N_REQUESTED * 145 / 100000" | bc)
+    echo -e "${YELLOW}⚠  ${N_REQUESTED} files ≈ ${size_gb} GB on disk.${RESET}"
+    read -r -p "Continue? [y/N] " confirm
+    [[ "$confirm" =~ ^[yY]$ ]] || exit 0
+fi
+
 # ── Generate test data if missing ─────────────────────────────────────────────
 
 if [[ ! -d "$TESTDATA" ]] || [[ $(ls "$TESTDATA"/*.json 2>/dev/null | wc -l) -lt 100 ]]; then
